@@ -1,8 +1,7 @@
 import asyncio
 import json
 import os
-from shutil import move
-
+from Roles import *
 import discord
 from discord.ext import commands
 
@@ -37,10 +36,11 @@ pass
 
 def fixStructure(guild: discord.Guild):
     guild_id = guild.id
-    if os.isfile(f'{config_dir}/{guild_id}'):
-        os.rename(f'{config_dir}/{guild_id}', f'{config_dir}/temp.conf')
-        os.mkdir(f'{config_dir}/{guild_id}')
-        os.rename(f'{config_dir}/temp.conf', f'{config_dir}/{guild_id}/perms.conf')
+    temp = f'{config_dir}/{guild_id}'
+    if os.path.isfile(temp):
+        os.rename(temp, f'{config_dir}/temp.conf')
+        os.mkdir(temp)
+        os.rename(f'{config_dir}/temp.conf', f'{temp}/perms.conf')
     pass
 pass
 
@@ -66,6 +66,22 @@ def get_permissions(guild: discord.Guild):
         yield target, state 
     pass
 pass
+
+
+
+def get_react_confs(guild: discord.Guild):
+    guild_id = guild.id
+    try:
+        with open(f'{config_dir}/{guild_id}/react.conf', 'r') as f:
+            react_conf: React_Conf = React_Conf.from_json(f, guild)
+            return react_conf
+        pass
+    except Exception as e: 
+        print(e)
+        return
+pass
+
+    
 
         
 
@@ -107,6 +123,9 @@ async def add_remove_clear_driver(ctx: commands.Context[commands.Bot], target: d
 
         try:
             fixStructure(ctx.guild)
+            if not os.path.isdir(f'{config_dir}/{guild_id}'):
+                os.mkdir(f'{config_dir}/{guild_id}')
+            pass
             with open(f'{config_dir}/{guild_id}/perms.conf', 'w') as f:
                 json.dump(guild_config, f)
             pass
@@ -151,8 +170,98 @@ pass
 
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def add_react_role(ctx: commands.Context[commands.Bot], target: discord.Role, emoji:discord.Reaction):
+async def add_react_role(ctx: commands.Context[commands.Bot], group: str, target: discord.Role, emoji:discord.Emoji|str):
+    if ctx.guild is None:
+        _ = await ctx.send('command not supported here')
+        return
     pass
+    guild_id = ctx.guild.id
+    if locks.get(guild_id) is None:
+        locks[guild_id] = asyncio.Lock()
+    pass
+
+    async with locks[guild_id]:
+        print(f'add react role {target} from emoji {emoji} to {group}')
+
+        try:
+            fixStructure(ctx.guild)
+            react_config = get_react_confs(ctx.guild)
+        except ValueError:
+            ctx.send("error reading config, use resetConf command to reset the config or seek help in manually amending it")
+            return
+        except: pass
+        if react_config is None:
+            react_config = React_Conf(ctx.guild)
+        pass
+        if group not in react_config:
+            _ = await ctx.send('that group does not exist')
+            return
+        pass
+        if target in react_config:
+            _ = await ctx.send("role already exists")
+            return
+        pass
+        react_config[group].append(React_Role(emoji, target))
+        try:
+            fixStructure(ctx.guild)
+            if not os.path.isdir(f'{config_dir}/{guild_id}'):
+                os.mkdir(f'{config_dir}/{guild_id}')
+            pass
+            with open(f'{config_dir}/{guild_id}/react.conf', 'w') as f:
+                json.dump(react_config.to_json(), f)
+            pass
+        except Exception as e:
+            print(e)
+            _ = await ctx.send('critical error occured during execution')
+            return
+        pass
+    _ = await ctx.send("done")
+    
+pass
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def add_react_role_group(ctx: commands.Context[commands.Bot], name: str):
+    if ctx.guild is None:
+        _ = await ctx.send('command not supported here')
+        return
+    pass
+
+    guild_id = ctx.guild.id
+    if locks.get(guild_id) is None:
+        locks[guild_id] = asyncio.Lock()
+    pass
+
+    async with locks[guild_id]:
+        print(f'add react role group {name}')
+
+        try:
+            fixStructure(ctx.guild)
+            react_config = get_react_confs(ctx.guild)
+        except ValueError:
+            ctx.send("error reading config, use resetConf command to reset the config or seek help in manually amending it")
+            return
+        except: pass
+        if react_config is None:
+            react_config = React_Conf(ctx.guild)
+        react_config.roles.append(React_Group(name))
+        try:
+            fixStructure(ctx.guild)
+            if not os.path.isdir(f'{config_dir}/{guild_id}'):
+                os.mkdir(f'{config_dir}/{guild_id}')
+            pass
+            with open(f'{config_dir}/{guild_id}/react.conf', 'w') as f:
+                json.dump(react_config.to_json(), f)
+            pass
+        except Exception as e:
+            print(e)
+            _ = await ctx.send('critical error occured during execution')
+            return
+        pass
+    
+    _ = await ctx.send("done")
+            
+    
 pass
 
 
