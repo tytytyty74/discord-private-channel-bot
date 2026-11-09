@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+from shutil import move
 
 import discord
 from discord.ext import commands
@@ -34,12 +35,20 @@ async def help(ctx: commands.Context[commands.Bot]):
     await ctx.send(embed=embed)
 pass
 
-
+def fixStructure(guild: discord.Guild):
+    guild_id = guild.id
+    if os.isfile(f'{config_dir}/{guild_id}'):
+        os.rename(f'{config_dir}/{guild_id}', f'{config_dir}/temp.conf')
+        os.mkdir(f'{config_dir}/{guild_id}')
+        os.rename(f'{config_dir}/temp.conf', f'{config_dir}/{guild_id}/perms.conf')
+    pass
+pass
 
 def get_permissions(guild: discord.Guild):
     guild_id = guild.id
+    fixStructure(guild)
     try:
-        with open(f'{config_dir}/{guild_id}', 'r') as f:
+        with open(f'{config_dir}/{guild_id}/perms.conf', 'r') as f:
             guild_config: dict[str,tuple[str,bool]] = json.load(f) # pyright: ignore[reportAny]
         pass
     except: return
@@ -79,7 +88,8 @@ async def add_remove_clear_driver(ctx: commands.Context[commands.Bot], target: d
         print(f'add remove clear {state} in {ctx.guild.name} for {target.name}')
 
         try:
-            with open(f'{config_dir}/{guild_id}', 'r') as f:
+            fixStructure(ctx.guild)
+            with open(f'{config_dir}/{guild_id}/perms.conf', 'r') as f:
                 guild_config = json.load(f) # pyright: ignore[reportAny]
             pass
         except:
@@ -96,7 +106,8 @@ async def add_remove_clear_driver(ctx: commands.Context[commands.Bot], target: d
 
 
         try:
-            with open(f'{config_dir}/{guild_id}', 'w') as f:
+            fixStructure(ctx.guild)
+            with open(f'{config_dir}/{guild_id}/perms.conf', 'w') as f:
                 json.dump(guild_config, f)
             pass
         except Exception as e:
@@ -138,6 +149,11 @@ async def clear(ctx: commands.Context[commands.Bot], target: discord.Member|disc
     await add_remove_clear_driver(ctx, target, None)
 pass
 
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def add_react_role(ctx: commands.Context[commands.Bot], target: discord.Role, emoji:discord.Reaction):
+    pass
+pass
 
 
 def get_channel_name(member: discord.Member):
@@ -215,6 +231,8 @@ pass
 
 
 
+
+
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def create_member_channels(ctx: commands.Context[commands.Bot]):
@@ -289,7 +307,12 @@ async def create_channel(category: discord.CategoryChannel, member:discord.Membe
 pass
 
 
+    
+
+
 if __name__ == '__main__':
     with open('./token', 'r') as f:
         bot.run(f.read())
+        
+    
 
