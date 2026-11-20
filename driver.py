@@ -34,8 +34,7 @@ async def help(ctx: commands.Context[commands.Bot]):
     await ctx.send(embed=embed)
 pass
 
-def fixStructure(guild: discord.Guild):
-    guild_id = guild.id
+def fixStructure(guild_id: int):
     temp = f'{config_dir}/{guild_id}'
     if os.path.isfile(temp):
         os.rename(temp, f'{config_dir}/temp.conf')
@@ -86,7 +85,23 @@ pass
         
 
 
+def get_lock(guild_id: int):
+    if locks.get(guild_id) is None:
+        locks[guild_id] = asyncio.Lock()
+    pass
+    return locks[guild_id]
+pass
 
+def get_guild_config(guild_id:int):
+    try:
+        fixStructure(guild_id)
+        with open(f'{config_dir}/{guild_id}/perms.conf', 'r') as f:
+            return json.load(f) # pyright: ignore[reportAny]
+        pass
+    except:
+        return {}
+    pass
+pass
 
 
 async def add_remove_clear_driver(ctx: commands.Context[commands.Bot], target: discord.Member|discord.Role, state: bool|None):
@@ -96,21 +111,11 @@ async def add_remove_clear_driver(ctx: commands.Context[commands.Bot], target: d
     pass
 
     guild_id = ctx.guild.id
-    if locks.get(guild_id) is None:
-        locks[guild_id] = asyncio.Lock()
-    pass
 
-    async with locks[guild_id]:
+    async with get_lock(guild_id):
         print(f'add remove clear {state} in {ctx.guild.name} for {target.name}')
 
-        try:
-            fixStructure(ctx.guild)
-            with open(f'{config_dir}/{guild_id}/perms.conf', 'r') as f:
-                guild_config = json.load(f) # pyright: ignore[reportAny]
-            pass
-        except:
-            guild_config = {}
-        pass
+        guild_config = get_guild_config(guild_id)
 
         target_type = 'Member' if type(target) is discord.Member else 'Role'
 
@@ -176,11 +181,8 @@ async def add_react_role(ctx: commands.Context[commands.Bot], group: str, target
         return
     pass
     guild_id = ctx.guild.id
-    if locks.get(guild_id) is None:
-        locks[guild_id] = asyncio.Lock()
-    pass
 
-    async with locks[guild_id]:
+    async with get_lock():
         print(f'add react role {target} from emoji {emoji} to {group}')
 
         try:
@@ -203,13 +205,7 @@ async def add_react_role(ctx: commands.Context[commands.Bot], group: str, target
         pass
         react_config[group].append(React_Role(emoji, target))
         try:
-            fixStructure(ctx.guild)
-            if not os.path.isdir(f'{config_dir}/{guild_id}'):
-                os.mkdir(f'{config_dir}/{guild_id}')
-            pass
-            with open(f'{config_dir}/{guild_id}/react.conf', 'w') as f:
-                json.dump(react_config.to_json(), f)
-            pass
+            react_cleanup()
         except Exception as e:
             print(e)
             _ = await ctx.send('critical error occured during execution')
@@ -228,11 +224,8 @@ async def add_react_role_group(ctx: commands.Context[commands.Bot], name: str):
     pass
 
     guild_id = ctx.guild.id
-    if locks.get(guild_id) is None:
-        locks[guild_id] = asyncio.Lock()
-    pass
-
-    async with locks[guild_id]:
+    
+    async with get_lock(guild_id):
         print(f'add react role group {name}')
 
         try:
@@ -246,13 +239,7 @@ async def add_react_role_group(ctx: commands.Context[commands.Bot], name: str):
             react_config = React_Conf(ctx.guild)
         react_config.roles.append(React_Group(name))
         try:
-            fixStructure(ctx.guild)
-            if not os.path.isdir(f'{config_dir}/{guild_id}'):
-                os.mkdir(f'{config_dir}/{guild_id}')
-            pass
-            with open(f'{config_dir}/{guild_id}/react.conf', 'w') as f:
-                json.dump(react_config.to_json(), f)
-            pass
+            react_cleanup(guild_id, react_config)
         except Exception as e:
             print(e)
             _ = await ctx.send('critical error occured during execution')
@@ -262,6 +249,16 @@ async def add_react_role_group(ctx: commands.Context[commands.Bot], name: str):
     _ = await ctx.send("done")
             
     
+pass
+
+def react_cleanup(guild_id: int, react_conf: React_Conf):
+    fixStructure(guild_id)
+    if not os.path.isdir(f'{config_dir}/{guild_id}'):
+        os.mkdir(f'{config_dir}/{guild_id}')
+    pass
+    with open(f'{config_dir}/{guild_id}/react.conf', 'w') as f:
+        json.dump(react_conf.to_json(), f)
+    pass
 pass
 
 
