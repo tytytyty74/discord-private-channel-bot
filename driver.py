@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 from shutil import move
+import typing
 
 import discord
 from discord.ext import commands
@@ -133,20 +134,23 @@ pass
 
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def add(ctx: commands.Context[commands.Bot], target: discord.Member|discord.Role):
-    await add_remove_clear_driver(ctx, target, True)
+async def add(ctx: commands.Context[commands.Bot], target: commands.Greedy[typing.Union[discord.Member, discord.Role]]):
+    for i in target:
+        await add_remove_clear_driver(ctx, i, True)
 pass
 
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def remove(ctx: commands.Context[commands.Bot], target: discord.Member|discord.Role):
-    await add_remove_clear_driver(ctx, target, False)
+async def remove(ctx: commands.Context[commands.Bot], target: commands.Greedy[typing.Union[discord.Member, discord.Role]]):
+    for i in target:
+        await add_remove_clear_driver(ctx, i, True)
 pass
 
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def clear(ctx: commands.Context[commands.Bot], target: discord.Member|discord.Role):
-    await add_remove_clear_driver(ctx, target, None)
+async def clear(ctx: commands.Context[commands.Bot], target: commands.Greedy[typing.Union[discord.Member, discord.Role]]):
+    for i in target:
+        await add_remove_clear_driver(ctx, i, True)
 pass
 
 @bot.command()
